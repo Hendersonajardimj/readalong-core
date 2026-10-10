@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A small standalone extraction of Readalong token lookup and text normalization.",
+  "description": "Public browser algorithms and native ReadAlongKit portable playback contract.",
   "engines": {
     "node": ">=22.18.0"
   },
   "scripts": {
     "demo": "node demo.ts",
-    "test": "node --test test/core.test.ts"
+    "test": "node --test test/*.test.ts",
+    "fixtures": "python3 fixtures/generate.py .tmp/contract-fixtures/python && node fixtures/generate.ts .tmp/contract-fixtures/typescript"
   },
   "license": "MIT"
 }

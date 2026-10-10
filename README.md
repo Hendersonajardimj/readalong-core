@@ -1,19 +1,30 @@
 # Readalong Core
 
-A small, runnable piece of Read Along: find the word playing at an audio position, and normalize narration text while keeping a map to the original script.
+Two runnable pieces of Read Along: a small browser timing/text sample, and the actual Swift bundle contract used to take completed Mac narration to iPhone and iPad.
 
-[Read Along story and demo](https://hendeaux.dev/projects/read-along)
+[Read Along story and web demonstration](https://hendeaux.dev/projects/read-along) · [Device journey and limits](docs/device-acceptance.md) · [Provenance](PROVENANCE.md)
 
-## Run it
+## Run the browser example
 
-Use Node.js 22.18 or newer. There are no external dependencies, provider keys, or audio downloads.
+Use Node.js 22.18 or newer and Python 3. There are no npm dependencies or provider credentials.
 
 ```sh
 npm run demo
 npm test
 ```
 
-The demo uses two synthetic timed words. It prints which word is active at several audio positions and shows a normalized script with its source map.
+The demo uses two synthetic timed words. Tests cover start/end boundaries, gaps, text normalization and the independently generated portable fixtures.
+
+## Run the native contract
+
+Use Swift 6 on macOS 14 or newer. This is a shared library, not the full native app.
+
+```sh
+npm run fixtures
+READALONG_CONTRACT_FIXTURES="$PWD/.tmp/contract-fixtures" swift test --package-path companion/ReadAlongKit
+```
+
+The tests create valid silent WAVs and verify hashes, forged IDs/durations, incomplete packages, unknown formats, unsafe paths, symlinks, exact UTF-16 text ranges and immutable duplicates. Generated Python/TypeScript packages also pass through the Swift loader and importer. [Format and failure handling](companion/FORMAT.md).
 
 ## Start reading here
 
@@ -21,26 +32,21 @@ The demo uses two synthetic timed words. It prints which word is active at sever
 | --- | --- |
 | [src/lookup.ts](src/lookup.ts) | Which word contains the current audio time? |
 | [src/normalize.ts](src/normalize.ts) | How can whitespace change while text offsets remain traceable? |
-| [src/types.ts](src/types.ts) | What timing and text ranges does a token carry? |
-| [demo.ts](demo.ts) | What happens at a word’s start, its end, and a gap? |
-| [test/core.test.ts](test/core.test.ts) | Which boundary and text-mapping cases are checked? |
+| [test/core.test.ts](test/core.test.ts) | What happens at starts, ends, gaps and mapped text? |
+| [ReadAlongBundle.swift](companion/ReadAlongKit/Sources/ReadAlongKit/ReadAlongBundle.swift) | When is a downloaded package complete, valid and safe to play? |
+| [ReadAlongBundleTests.swift](companion/ReadAlongKit/Tests/ReadAlongKitTests/ReadAlongBundleTests.swift) | Which corruption, Unicode and filesystem failures are rejected? |
+| [Fixture interoperability test](test/fixtures.test.ts) | Do independent publishers agree on the content identity and source ranges? |
 
-## How lookup works
+## Two contracts, different responsibilities
 
-The token list is ordered by start time. A binary search finds the last token that starts at or before the audio position, then checks whether the position is before its end. Intervals include the start and exclude the end; a gap has no active word.
+Browser lookup uses binary search over valid, ordered, nonoverlapping intervals. Starts are included, ends excluded, and gaps have no active word. Normalization returns an original-script index for each output UTF-16 code unit; that is not spoken-word alignment or a grapheme map.
 
-This core assumes valid, ordered, non-overlapping timing intervals. It does not generate speech or validate a provider response.
-
-## How text mapping works
-
-Normalization reduces horizontal whitespace and repeated blank lines. Alongside the resulting text, it returns the original script index for each output UTF-16 code unit. This is a code-unit map, not a grapheme or spoken-word alignment.
-
-In the complete app, measured provider timings and estimated native timings have different origins. They should be identified accurately; this sample invents neither.
+The native package owns a completed playback snapshot: exact text, playable audio, word timings and public metadata. It checks content and payload hashes, validates source ranges, and commits a copied package atomically. It allows overlapping native timing estimates under its documented rules. Timing fidelity remains explicitly estimated or measured; these synthetic fixtures do not measure speech.
 
 ## Scope and provenance
 
-The two core algorithms come from the existing agent-assisted Readalong web project. Codex prepared this standalone extraction, its synthetic demo, the dependency-free test adaptation, and the documentation on October 5, 2026. [Provenance](PROVENANCE.md).
+The browser sample was extracted October 5, 2026. The Swift package and existing failure tests were extracted October 10 from private Read Along source commit `04b4edc788693c7e4ad91d536f50167075829fea`. See [provenance](PROVENANCE.md) for unchanged files and the small public adaptations.
 
-This repository is a core sample. It contains no speech engine, client work, private reading material, or full-app distribution.
+Read Along was built with coding-agent assistance. This subset exposes inspectable code and tests without claiming unaided authorship, the entire application, or broad user acceptance. The [dated acceptance summary](docs/device-acceptance.md) distinguishes a physical iPhone journey, simulator checks and remaining device work.
 
-MIT licence; see [LICENSE](LICENSE).
+No speech engine, client source, private reading material, credentials or original private Git history is included. MIT license; see [LICENSE](LICENSE).
